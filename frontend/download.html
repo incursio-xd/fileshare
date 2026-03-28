@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FileShare - Download</title>
+</head>
+<body>
+  <h1>FileShare - Download</h1>
+
+  <div id="loading">Loading file info...</div>
+
+  <div id="fileInfo" style="display:none;">
+    <p>File: <strong id="filename"></strong></p>
+    <p>Expires at: <span id="expiry"></span></p>
+    <hr />
+    <label for="passwordInput">Enter password to download:</label><br />
+    <input type="password" id="passwordInput" placeholder="Enter password" /><br /><br />
+    <button id="downloadBtn">Download File</button>
+    <br /><br />
+    <span id="status"></span>
+  </div>
+
+  <div id="errorBox" style="display:none;">
+    <p id="errorMsg"></p>
+  </div>
+
+  <script>
+    const API = "";
+
+    // Extract token from URL query param
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    const loading = document.getElementById("loading");
+    const fileInfo = document.getElementById("fileInfo");
+    const errorBox = document.getElementById("errorBox");
+    const errorMsg = document.getElementById("errorMsg");
+
+    function showError(msg) {
+      loading.style.display = "none";
+      fileInfo.style.display = "none";
+      errorBox.style.display = "block";
+      errorMsg.textContent = msg;
+    }
+
+    async function loadFileInfo() {
+      if (!token) {
+        showError("No token found in URL. Invalid link.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/api/info/${token}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || "File not found or link has expired.");
+          return;
+        }
+
+        document.getElementById("filename").textContent = data.filename;
+        document.getElementById("expiry").textContent = new Date(
+          data.expiresAt
+        ).toLocaleString();
+
+        loading.style.display = "none";
+        fileInfo.style.display = "block";
+      } catch (err) {
+        showError("Network error. Is the server running?");
+      }
+    }
+
+    document.getElementById("downloadBtn").addEventListener("click", async () => {
+      const password = document.getElementById("passwordInput").value;
+      const status = document.getElementById("status");
+
+      status.textContent = "";
+
+      if (!password) {
+        status.textContent = "Please enter the password.";
+        return;
+      }
+
+      document.getElementById("downloadBtn").disabled = true;
+      status.textContent = "Verifying...";
+
+      try {
+        const res = await fetch(`${API}/api/download/${token}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          status.textContent = "Error: " + data.error;
+          document.getElementById("downloadBtn").disabled = false;
+          return;
+        }
+
+        // Trigger download by creating a temporary <a> and clicking it
+        status.textContent = "Starting download...";
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        status.textContent = "Download started!";
+        document.getElementById("downloadBtn").disabled = false;
+      } catch (err) {
+        status.textContent = "Network error. Is the server running?";
+        document.getElementById("downloadBtn").disabled = false;
+      }
+    });
+
+    // Load file info on page load
+    loadFileInfo();
+  </script>
+</body>
+</html>

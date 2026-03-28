@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FileShare - Upload</title>
+</head>
+<body>
+  <h1>FileShare</h1>
+  <p>Upload a file and set a password. Share the generated link + password with the recipient.</p>
+
+  <hr />
+
+  <label for="fileInput">Choose file:</label><br />
+  <input type="file" id="fileInput" /><br /><br />
+
+  <label for="passwordInput">Set a password:</label><br />
+  <input type="text" id="passwordInput" placeholder="Enter password" /><br /><br />
+
+  <button id="uploadBtn">Upload</button>
+
+  <br /><br />
+  <div id="status"></div>
+  <div id="result" style="display:none;">
+    <hr />
+    <strong>File uploaded successfully!</strong><br /><br />
+    <label>Share this link with the recipient:</label><br />
+    <input type="text" id="shareLink" readonly style="width:500px;" /><br /><br />
+    <button id="copyBtn">Copy Link</button><br /><br />
+    <strong>Also share the password you set above with them separately.</strong><br />
+    <span id="expiryInfo"></span>
+  </div>
+
+  <script>
+    const API = ""; // same origin — backend serves this file
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("fileInput");
+      const password = document.getElementById("passwordInput").value.trim();
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+
+      status.textContent = "";
+      result.style.display = "none";
+
+      if (!fileInput.files.length) {
+        status.textContent = "Please select a file.";
+        return;
+      }
+      if (!password) {
+        status.textContent = "Please enter a password.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      formData.append("password", password);
+
+      status.textContent = "Uploading... please wait.";
+      document.getElementById("uploadBtn").disabled = true;
+
+      try {
+        const res = await fetch(`${API}/api/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          status.textContent = "Error: " + data.error;
+          document.getElementById("uploadBtn").disabled = false;
+          return;
+        }
+
+        // Build the download link pointing to download.html
+        const downloadLink =
+          window.location.origin + "/download.html?token=" + data.token;
+
+        document.getElementById("shareLink").value = downloadLink;
+
+        const expiry = new Date(data.expiresAt);
+        document.getElementById("expiryInfo").textContent =
+          "File expires at: " + expiry.toLocaleString();
+
+        status.textContent = "";
+        result.style.display = "block";
+        document.getElementById("uploadBtn").disabled = false;
+      } catch (err) {
+        status.textContent = "Network error. Is the server running?";
+        document.getElementById("uploadBtn").disabled = false;
+      }
+    });
+
+    document.getElementById("copyBtn").addEventListener("click", () => {
+      const link = document.getElementById("shareLink");
+      link.select();
+      document.execCommand("copy");
+      document.getElementById("copyBtn").textContent = "Copied!";
+      setTimeout(() => {
+        document.getElementById("copyBtn").textContent = "Copy Link";
+      }, 2000);
+    });
+  </script>
+</body>
+</html>
