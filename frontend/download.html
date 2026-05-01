@@ -26,8 +26,6 @@
 
   <script>
     const API = "";
-
-    // Extract token from URL query param
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
 
@@ -48,21 +46,15 @@
         showError("No token found in URL. Invalid link.");
         return;
       }
-
       try {
         const res = await fetch(`${API}/api/info/${token}`);
         const data = await res.json();
-
         if (!res.ok) {
           showError(data.error || "File not found or link has expired.");
           return;
         }
-
         document.getElementById("filename").textContent = data.filename;
-        document.getElementById("expiry").textContent = new Date(
-          data.expiresAt
-        ).toLocaleString();
-
+        document.getElementById("expiry").textContent = new Date(data.expiresAt).toLocaleString();
         loading.style.display = "none";
         fileInfo.style.display = "block";
       } catch (err) {
@@ -73,7 +65,6 @@
     document.getElementById("downloadBtn").addEventListener("click", async () => {
       const password = document.getElementById("passwordInput").value;
       const status = document.getElementById("status");
-
       status.textContent = "";
 
       if (!password) {
@@ -95,11 +86,14 @@
 
         if (!res.ok) {
           status.textContent = "Error: " + data.error;
-          document.getElementById("downloadBtn").disabled = false;
+          if (res.status === 410) {
+            document.getElementById("downloadBtn").disabled = true;
+          } else {
+            document.getElementById("downloadBtn").disabled = false;
+          }
           return;
         }
 
-        // Trigger download by creating a temporary <a> and clicking it
         status.textContent = "Starting download...";
         const a = document.createElement("a");
         a.href = data.url;
@@ -107,16 +101,14 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-
-        status.textContent = "Download started!";
-        document.getElementById("downloadBtn").disabled = false;
+        status.textContent = "Download started! This link is now expired.";
+        document.getElementById("downloadBtn").disabled = true;
       } catch (err) {
         status.textContent = "Network error. Is the server running?";
         document.getElementById("downloadBtn").disabled = false;
       }
     });
 
-    // Load file info on page load
     loadFileInfo();
   </script>
 </body>
